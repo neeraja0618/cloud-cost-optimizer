@@ -2,75 +2,633 @@
 <html>
 <head>
     <title>Cloud Cost Optimizer</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
         body {
-            font-family: Arial;
-            background-color: #f5f5f5;
-            margin: 0;
-            padding: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background: #eef2f7;
         }
 
+        /* HEADER */
         .header {
-            background-color: #2c3e50;
+            background: linear-gradient(90deg, #1f3c88, #3b82f6);
             color: white;
-            padding: 15px;
+            padding: 24px;
             text-align: center;
         }
+        .header h1 { font-size: 24px; margin-bottom: 6px; }
+        .header p { font-size: 13px; opacity: 0.85; }
 
-        .container {
-            padding: 20px;
+        /* TOTAL SAVINGS BAR */
+        .savings-bar {
+            background: linear-gradient(90deg, #155724, #27ae60);
+            color: white;
+            padding: 16px 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .savings-bar .label { font-size: 13px; opacity: 0.9; }
+        .savings-bar .amount { font-size: 30px; font-weight: bold; }
+        .savings-bar .meta { font-size: 13px; opacity: 0.85; }
+
+        /* SECTION TITLE */
+        .section-title {
+            font-size: 17px;
+            font-weight: bold;
+            color: #1f3c88;
+            padding: 20px 24px 8px;
+            border-bottom: 2px solid #d0dff7;
         }
 
+        /* GRID */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+            gap: 20px;
+            padding: 20px 24px;
+        }
+
+        .grid-full {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            padding: 20px 24px;
+        }
+
+        /* CARD */
         .card {
             background: white;
-            padding: 15px;
-            margin-bottom: 20px;
+            padding: 20px;
+            border-radius: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .card h2 {
+            font-size: 15px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        /* SERVER CARD */
+        .server-card {
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            padding: 20px;
+            border-left: 5px solid #3b82f6;
+            transition: border-color 0.3s;
+        }
+        .server-card.idle     { border-left-color: #e67e22; }
+        .server-card.critical { border-left-color: #e74c3c; }
+        .server-card.normal   { border-left-color: #27ae60; }
+
+        .server-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+        .server-name { font-size: 15px; font-weight: bold; color: #1f3c88; }
+        .server-meta { font-size: 11px; color: #aaa; margin-top: 2px; }
+
+        /* STATUS */
+        .status-normal   { color: #27ae60; font-weight: bold; font-size: 13px; }
+        .status-idle     { color: #e67e22; font-weight: bold; font-size: 13px; }
+        .status-critical { color: #e74c3c; font-weight: bold; font-size: 13px; }
+
+        /* BADGE */
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .badge-low    { background: #d4edda; color: #155724; }
+        .badge-medium { background: #fff3cd; color: #856404; }
+        .badge-high   { background: #f8d7da; color: #721c24; }
+        .badge-none   { background: #e2e3e5; color: #383d41; }
+
+        /* MONEY */
+        .money-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1f3c88;
+            margin-top: 2px;
+        }
+
+        /* WARNING BOX */
+        .warning-box {
+            padding: 8px 12px;
             border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 10px;
+            background: #fff3cd;
+            color: #856404;
         }
+        .warning-box.critical { background: #f8d7da; color: #721c24; }
+        .warning-box.normal   { background: #d4edda; color: #155724; }
 
-        .alert {
-            color: red;
+        /* PROGRESS */
+        .progress-container {
+            width: 100%;
+            height: 8px;
+            background: #ddd;
+            border-radius: 4px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 8px;
+            width: 0%;
+            border-radius: 4px;
+            transition: width 1s linear;
+            background: #e74c3c;
+        }
+        .countdown-text { font-size: 12px; color: #777; margin-top: 6px; }
+
+        /* BUTTONS */
+        .btn {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 10px;
+            margin-right: 6px;
+            transition: opacity 0.2s;
+        }
+        .btn:hover { opacity: 0.85; }
+        .btn-stop         { background: #e74c3c; color: white; }
+        .btn-cancel       { background: #6c757d; color: white; }
+        .btn-resize       { background: #f39c12; color: white; }
+        .btn-cancel-resize{ background: #6c757d; color: white; }
+
+        /* CHART */
+        .chart-wrap { max-height: 110px; }
+
+        /* OVP */
+        .ovp-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            margin-top: 12px;
+        }
+        .ovp-stat {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .ovp-stat .label { font-size: 11px; color: #888; margin-bottom: 4px; }
+        .ovp-stat .value { font-size: 15px; font-weight: bold; color: #1f3c88; }
+        .ovp-stat .sub   { font-size: 11px; color: #aaa; margin-top: 2px; }
+
+        .util-bar-container {
+            width: 100%;
+            height: 6px;
+            background: #ddd;
+            border-radius: 3px;
+            margin-top: 6px;
+            overflow: hidden;
+        }
+        .util-bar { height: 6px; border-radius: 3px; transition: width 0.5s; }
+        .util-bar.good { background: #27ae60; }
+        .util-bar.warn { background: #e74c3c; }
+
+        .ovp-rec {
+            margin-top: 12px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 13px;
             font-weight: bold;
         }
+        .ovp-rec.over { background: #f8d7da; color: #721c24; }
+        .ovp-rec.ok   { background: #d4edda; color: #155724; }
 
-        .success {
-            color: green;
-            font-weight: bold;
+        .divider { border: none; border-top: 1px solid #eee; margin: 12px 0; }
+
+        /* LOG */
+        .log-panel {
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 12px;
+            margin-top: 8px;
         }
+        .log-entry {
+            padding: 5px 8px;
+            border-bottom: 1px solid #f0f0f0;
+            line-height: 1.5;
+        }
+        .log-entry:first-child { background: #f0f7ff; }
+        .log-idle     { border-left: 3px solid #e67e22; }
+        .log-critical { border-left: 3px solid #e74c3c; }
+        .log-stop     { border-left: 3px solid #8e44ad; }
+        .log-info     { border-left: 3px solid #3b82f6; }
+        .log-normal   { border-left: 3px solid #27ae60; }
     </style>
 </head>
 
 <body>
 
-    <div class="header">
-        <h1>Cloud Cost Optimizer Dashboard</h1>
+<!-- HEADER -->
+<div class="header">
+    <h1>🚀 AI Cloud Cost Optimizer</h1>
+    <p>Real-Time Monitoring &bull; Smart Detection &bull; Automated Action &bull; Over-Provisioning Analysis</p>
+</div>
+
+<!-- TOTAL SAVINGS -->
+<div class="savings-bar">
+    <div>
+        <div class="label">💰 Total Money Saved Across All Servers</div>
+        <div class="amount" id="totalSavings">₹0</div>
     </div>
-
-    <div class="container">
-
-        <div class="card">
-            <h2>CPU Usage</h2>
-            <p>20% → 15% → 5% → 2%</p>
-        </div>
-
-        <div class="card">
-            <h2>Status</h2>
-            <p class="alert">⚠️ Idle instance detected (CPU below threshold)</p>
-        </div>
-
-        <div class="card">
-            <h2>Action Taken</h2>
-            <p class="success">✅ EC2 instance stopped automatically</p>
-        </div>
-
-        <div class="card">
-            <h2>Money Saved</h2>
-            <p>₹120 saved</p>
-        </div>
-
+    <div class="meta">
+        🖥️ <span id="serverCount">4</span> Servers Monitored
     </div>
+</div>
+
+<!-- SERVERS -->
+<div class="section-title">🖥️ Server Monitoring</div>
+<div class="grid" id="serverContainer"></div>
+
+<!-- OVER-PROVISIONING -->
+<div class="section-title">🔍 Over-Provisioning Analysis</div>
+<div class="grid" id="ovpContainer"></div>
+
+<!-- LOG -->
+<div class="section-title">📜 Activity Log</div>
+<div class="grid-full">
+    <div class="card">
+        <h2>📜 System Activity Log</h2>
+        <p style="font-size:12px; color:#888; margin-bottom:6px;">
+            All system decisions and actions tracked in real time.
+        </p>
+        <div class="log-panel" id="logPanel"></div>
+    </div>
+</div>
+
+<script>
+// -----------------------------------------------
+// STATE
+// -----------------------------------------------
+const charts = {};
+const timers = {};
+const counting = {};
+const countdownVals = {};
+
+// -----------------------------------------------
+// LOG
+// -----------------------------------------------
+function addLog(msg, type = "info") {
+    const panel = document.getElementById("logPanel");
+    const time = new Date().toLocaleTimeString();
+    const el = document.createElement("div");
+    el.className = `log-entry log-${type}`;
+    el.innerText = `[${time}] ${msg}`;
+    panel.prepend(el);
+    while (panel.children.length > 60) panel.removeChild(panel.lastChild);
+}
+
+// -----------------------------------------------
+// BUILD SERVER CARD
+// -----------------------------------------------
+function buildServerCard(s) {
+    const card = document.createElement("div");
+    card.id = `card-${s.name}`;
+    card.className = "server-card normal";
+    card.innerHTML = `
+        <div class="server-header">
+            <div>
+                <div class="server-name">🖥️ ${s.name}</div>
+                <div class="server-meta">ID: ${s.id} &bull; ${s.region}</div>
+            </div>
+            <span id="badge-${s.name}" class="badge badge-none">NONE</span>
+        </div>
+        <div class="chart-wrap">
+            <canvas id="chart-${s.name}"></canvas>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-top:10px;">
+            <div>
+                <div style="font-size:11px;color:#888;">Status</div>
+                <p id="status-${s.name}" class="status-normal">✅ Running Normally</p>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-size:11px;color:#888;">Money Saved</div>
+                <div id="money-${s.name}" class="money-value">₹${s.money}</div>
+            </div>
+        </div>
+        <div id="warning-${s.name}" class="warning-box normal">✅ Running normally</div>
+        <div id="cd-section-${s.name}" style="display:none; margin-top:8px;">
+            <p id="cd-text-${s.name}" class="countdown-text"></p>
+            <div class="progress-container">
+                <div class="progress-bar" id="cd-bar-${s.name}"></div>
+            </div>
+            <button class="btn btn-stop"   onclick="manualStop('${s.name}')">🛑 Stop Now</button>
+            <button class="btn btn-cancel" onclick="cancelStop('${s.name}')">✅ Keep Running</button>
+        </div>
+    `;
+    return card;
+}
+
+// -----------------------------------------------
+// INIT CHART
+// -----------------------------------------------
+function initChart(name) {
+    const ctx = document.getElementById(`chart-${name}`).getContext("2d");
+    const labels = [];
+    for (let i = 4; i >= 0; i--) {
+        labels.push(new Date(Date.now() - i * 2000).toLocaleTimeString());
+    }
+    charts[name] = new Chart(ctx, {
+        type: "line",
+        data: {
+            labels,
+            datasets: [{
+                label: "CPU %",
+                data: [20, 18, 15, 10, 8],
+                borderColor: "#3b82f6",
+                backgroundColor: "rgba(59,130,246,0.1)",
+                borderWidth: 2,
+                tension: 0.3,
+                fill: true,
+                pointRadius: 2
+            }]
+        },
+        options: {
+            animation: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { min: 0, max: 100, ticks: { font: { size: 9 } } },
+                x: { ticks: { font: { size: 9 }, maxRotation: 0, maxTicksLimit: 5 } }
+            }
+        }
+    });
+}
+
+function updateChart(name, cpu) {
+    const c = charts[name];
+    if (!c) return;
+    c.data.labels.push(new Date().toLocaleTimeString());
+    c.data.labels.shift();
+    c.data.datasets[0].data.push(cpu);
+    c.data.datasets[0].data.shift();
+    c.update();
+}
+
+// -----------------------------------------------
+// UPDATE SERVER UI
+// -----------------------------------------------
+function updateServerUI(s) {
+    const n = s.name;
+    updateChart(n, s.cpu);
+
+    // Card border
+    const card = document.getElementById(`card-${n}`);
+    if (card) card.className = "server-card " + (
+        s.level === "high" ? "critical" :
+        s.status === "idle" ? "idle" : "normal"
+    );
+
+    // Status text
+    const el = document.getElementById(`status-${n}`);
+    if (s.status === "idle") {
+        el.className = s.level === "high" ? "status-critical" : "status-idle";
+        el.innerText = s.level === "high" ? "🚨 Critical Idle" : "⚠️ Idle Detected";
+    } else {
+        el.className = "status-normal";
+        el.innerText = "✅ Running Normally";
+    }
+
+    // Badge
+    const badge = document.getElementById(`badge-${n}`);
+    badge.innerText = s.level.toUpperCase();
+    badge.className = `badge badge-${s.level}`;
+
+    // Money
+    document.getElementById(`money-${n}`).innerText = "₹" + s.money;
+
+    // Warning
+    const w = document.getElementById(`warning-${n}`);
+    w.innerText = s.warning;
+    w.className = "warning-box " + (
+        s.level === "high" ? "critical" :
+        s.status === "normal" ? "normal" : ""
+    );
+
+    // Countdown
+    const cdSection = document.getElementById(`cd-section-${n}`);
+    if (s.user_action_required) {
+        cdSection.style.display = "block";
+        if (!counting[n]) startCountdown(n, s.countdown);
+    } else {
+        cdSection.style.display = "none";
+        stopCountdown(n);
+    }
+}
+
+// -----------------------------------------------
+// COUNTDOWN
+// -----------------------------------------------
+function startCountdown(name, secs) {
+    counting[name] = true;
+    countdownVals[name] = secs;
+    const bar = document.getElementById(`cd-bar-${name}`);
+
+    timers[name] = setInterval(async () => {
+        countdownVals[name]--;
+        document.getElementById(`cd-text-${name}`).innerText =
+            `⏳ Auto-stop in ${countdownVals[name]} sec`;
+
+        const pct = ((secs - countdownVals[name]) / secs) * 100;
+        bar.style.width = pct + "%";
+
+        if (countdownVals[name] <= 0) {
+            stopCountdown(name);
+            await triggerStop(name);
+        }
+    }, 1000);
+}
+
+function stopCountdown(name) {
+    if (timers[name]) { clearInterval(timers[name]); timers[name] = null; }
+    counting[name] = false;
+    const bar = document.getElementById(`cd-bar-${name}`);
+    if (bar) bar.style.width = "0%";
+}
+
+// -----------------------------------------------
+// STOP / CANCEL
+// -----------------------------------------------
+async function triggerStop(name) {
+    await fetch(`http://127.0.0.1:8000/stop/${name}`);
+    document.getElementById(`status-${name}`).innerText = "⚡ Auto-stopped";
+    document.getElementById(`cd-text-${name}`).innerText = "Instance stopped.";
+    document.getElementById(`cd-section-${name}`).style.display = "none";
+    addLog(`${name} auto-stopped after countdown.`, "stop");
+}
+
+async function manualStop(name) {
+    stopCountdown(name);
+    await fetch(`http://127.0.0.1:8000/stop/${name}`);
+    document.getElementById(`status-${name}`).innerText = "🛑 Manually stopped";
+    document.getElementById(`cd-text-${name}`).innerText = "Instance stopped.";
+    document.getElementById(`cd-section-${name}`).style.display = "none";
+    addLog(`${name} manually stopped by user.`, "stop");
+}
+
+async function cancelStop(name) {
+    stopCountdown(name);
+    await fetch(`http://127.0.0.1:8000/cancel/${name}`);
+    const w = document.getElementById(`warning-${name}`);
+    w.className = "warning-box normal";
+    w.innerText = "✅ User kept instance running. Monitoring resumed.";
+    document.getElementById(`cd-section-${name}`).style.display = "none";
+    addLog(`${name} stop cancelled by user. Monitoring resumed.`, "info");
+}
+
+// -----------------------------------------------
+// FETCH SERVERS
+// -----------------------------------------------
+async function updateServers() {
+    try {
+        const res = await fetch("http://127.0.0.1:8000/servers");
+        const data = await res.json();
+        const container = document.getElementById("serverContainer");
+
+        // Build cards once
+        if (container.children.length === 0) {
+            data.servers.forEach(s => {
+                container.appendChild(buildServerCard(s));
+                initChart(s.name);
+                addLog(`${s.name} connected. Region: ${s.region}`, "info");
+            });
+        }
+
+        let total = 0;
+        data.servers.forEach(s => {
+            updateServerUI(s);
+            total += s.money;
+            if (s.status === "idle" && !counting[s.name] && !s.user_action_required) {
+                addLog(`${s.name} — CPU ${s.cpu}% — ${s.warning}`, "idle");
+            }
+        });
+
+        document.getElementById("totalSavings").innerText = "₹" + total;
+        document.getElementById("serverCount").innerText = data.servers.length;
+
+    } catch (e) {
+        console.error("Server fetch error:", e);
+    }
+}
+
+// -----------------------------------------------
+// FETCH OVER-PROVISIONING
+// -----------------------------------------------
+async function updateOVP() {
+    try {
+        const res = await fetch("http://127.0.0.1:8000/overprovision");
+        const data = await res.json();
+        const container = document.getElementById("ovpContainer");
+        container.innerHTML = "";
+
+        data.servers.forEach(s => {
+            const card = document.createElement("div");
+            card.className = "card";
+
+            const cpuColor = s.cpu_utilization_pct < 40 ? "warn" : "good";
+            const ramColor = s.ram_utilization_pct < 40 ? "warn" : "good";
+
+            const sevColors = {
+                critical: "#e74c3c",
+                high: "#e67e22",
+                medium: "#f39c12",
+                ok: "#27ae60"
+            };
+            const statusColor = sevColors[s.severity] || "#27ae60";
+            const statusLabel = s.is_overprovisioned
+                ? ({ critical: "🚨 Critical", high: "⚠️ High", medium: "🔶 Medium" }[s.severity] || "⚠️ Over")
+                : "✅ OK";
+            const statusSub = s.is_overprovisioned
+                ? s.severity + " severity"
+                : "Properly sized";
+
+            card.innerHTML = `
+                <h2>🔍 ${s.name}</h2>
+                <p style="font-size:12px;color:#888;margin-bottom:6px;">
+                    Instance: <strong>${s.current_instance}</strong> &bull; ₹${s.current_monthly_cost}/month
+                </p>
+
+                <hr class="divider">
+
+                <div class="ovp-grid">
+
+                    <div class="ovp-stat">
+                        <div class="label">CPU Utilization</div>
+                        <div class="value">${s.cpu_utilization_pct}%</div>
+                        <div class="sub">${s.actual_cpu} / ${s.allocated_cpu} cores</div>
+                        <div class="util-bar-container">
+                            <div class="util-bar ${cpuColor}"
+                                style="width:${Math.min(s.cpu_utilization_pct,100)}%"></div>
+                        </div>
+                    </div>
+
+                    <div class="ovp-stat">
+                        <div class="label">RAM Utilization</div>
+                        <div class="value">${s.ram_utilization_pct}%</div>
+                        <div class="sub">${s.actual_ram_gb} / ${s.allocated_ram_gb} GB</div>
+                        <div class="util-bar-container">
+                            <div class="util-bar ${ramColor}"
+                                style="width:${Math.min(s.ram_utilization_pct,100)}%"></div>
+                        </div>
+                    </div>
+
+                    <div class="ovp-stat">
+                        <div class="label">Status</div>
+                        <div class="value" style="font-size:13px;color:${statusColor};">
+                            ${statusLabel}
+                        </div>
+                        <div class="sub">${statusSub}</div>
+                    </div>
+
+                    <div class="ovp-stat">
+                        <div class="label">Monthly Savings</div>
+                        <div class="value">₹${s.estimated_monthly_savings}</div>
+                        <div class="sub">if downsized</div>
+                    </div>
+
+                </div>
+
+                <div class="ovp-rec ${s.is_overprovisioned ? 'over' : 'ok'}">
+                    💡 ${s.recommendation}
+                </div>
+            `;
+
+            container.appendChild(card);
+        });
+
+    } catch (e) {
+        console.error("OVP fetch error:", e);
+    }
+}
+
+
+
+// -----------------------------------------------
+// START
+// -----------------------------------------------
+addLog("System started. Monitoring all servers...", "info");
+updateServers();
+updateOVP();
+setInterval(updateServers, 2000);
+setInterval(updateOVP, 6000);
+</script>
 
 </body>
 </html>
